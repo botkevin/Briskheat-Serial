@@ -3,6 +3,7 @@ import time
 
 #connecting to Port COM3, check device manager
 #returns the initialized serialport
+#TODO: find out a way to raise an error if no connection
 
 class Briskheat:
     #Serial ser;
@@ -10,7 +11,8 @@ class Briskheat:
     def __init__(self, path = 'COM3'):
         self.port = path
         self.open(path)
-        
+
+    #opens serialport
     def open(self, path):
         self.ser = serial.Serial(
                 port=path,
@@ -31,6 +33,7 @@ class Briskheat:
         self.ser.write(msg)
         time.sleep(1) #wait for briskheat to respond
 
+    #reads from serialport
     def read(self):
         out = ''
         while self.ser.inWaiting() > 0:
@@ -85,7 +88,7 @@ class Briskheat:
     #starts dump command for briskheat
     def get_dump(self):
         print("Press Ctrl-C to stop dump, this will not stop the program")
-        self.send_and_read('dump')
+        self.send('dump')
         try:
             while True:
                 print(self.read(), end='')
