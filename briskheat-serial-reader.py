@@ -25,6 +25,11 @@ class Briskheat:
                 )
         assert(self.ser.isOpen())
 
+    #writes but does not wait
+    def quick_send(self, message):        s
+        message = message + "\r" #takes \r carriage return
+        msg = message.encode('ascii')
+        self.ser.write(msg) 
 
     #writes to briskheat
     def send(self, message):
