@@ -1,10 +1,15 @@
 import briskheat_serial_reader
 import time
+import pickle
 
+opened_time = ''
+time = True
 ports = ['COM3'] #insert list of coms here, could be a param to make_briskheats()
 briskheats = []
-num_of_responses = 0;
-data = [] #will be an array of arrays with the index of the data array corresponding with the index of the port/briskheat. This is an implicit association. Is a 3d array (array of all the briskheats, and in each of those an array of all the information, which is also stored in arrays
+data = [] #will be an array of arrays with the index of the data array corresponding with the index of the port/briskheat.
+#This is an implicit association. Is a 3d array (array of all the briskheats,
+#and in each of those an array of all the information, which is also stored in arrays
+
 raised_errors = []
 error_ref = {    
     8001 : 'STATUS_OK Current temperature is within alarm limits',
@@ -43,7 +48,9 @@ def mass_read():
     return rv
         
 #Run dump on all the bh and gather data, storing it in arrays
-#WARNING: once in a while there is going to be a pair of bad data points due to the nature of time on machines not being exactly synced and the briskheat taking time to spew numbers. The strange numbers on time.sleep are so odd to counteract this effect.
+#WARNING: once in a while there is going to be a pair of bad data points due to the nature of time
+#on machines not being exactly synced and the briskheat taking time to repopulate the buffer.
+#The strange numbers on time.sleep are so odd to mitigate this effect.
 def dump_gather():
     mass_send('dump')
     mass_read(); #get rid of first message, which is an intro message
@@ -74,14 +81,14 @@ def dump_gather():
             print('data: ' + data.__str__())
         time.sleep(4.63)
 
-#parses the dump log. Temp is multiplied by ten
+#parses the dump log.
 def parse(s):
     s_arr = s.split(' ')
     #1 = time, 2 = date, 3 = zone, 4 = status, 5 = set-point, #6 = high alarm limit,
     #7 = low alarm limit, 8 = actual temp, 9 = duty cycle, 10 = heater status
     #whats important: 4 - 1 status, 8 - 1 actual temp,
 
-    if len(s_arr) != 10: #bad data, return False, attempts to filter out bad data.
+    if len(s_arr) != 10: #bad data
         return 'error'
     
     error_code = s_arr[3][-4:] #trims the string down to it's last 4 characters
@@ -90,10 +97,23 @@ def parse(s):
         #TODO: not sure what to do with the error, store it for now
         raised_errors.append(s_arr)
         print('error msg: ' + error_msg.__str__())
-
+    if time == true:
+        opened_time = s_arr[1] + '.' + s_arr[0]
+        time = false
     #print('s_arr: ' + s_arr.__str__())
-    temp = int(float(s_arr[7][2:8]) * 10)
-    return [temp] #can change how much information you want to return(length of array).
+    temp = int(float(s_arr[7][2:8]) * 10) #temp is sanitized to float, then it is multiplied by ten for int
+    return [temp] #can change how much information you want to return
+
+#using pickle
+def save():
+    with open('briskheat' + opened_time + '.data', 'wb') as file:
+        pickle.dump({'opened_time' : opened_time, 'ports' : ports, 'data' : data}, file)
+
+def open(file_name):
+    rv = 'file failed to load'
+    with open(file_name, 'rb') as file:
+        rv = pickle.load(file)
+    return rv
 
 make_briskheats()
 dump_gather()
