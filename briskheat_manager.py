@@ -26,6 +26,9 @@ error_ref = {
     8401 : 'STATUS_LINE_CTRL_COMM_BAD Communication error with heater line module',
     0000 : 'STATUS_HEATER_DISABLED Zone is disabled'
 }
+communication_errors = [8080, 8100, 8101, 8200, 8201, 8400, 8401]
+reconnect_try_limit = 3
+reconnect_tries = 0;
 
 #initialize all the briskheats store data in arrays
 def make_briskheats():
@@ -34,6 +37,12 @@ def make_briskheats():
         bh.connect()
         briskheats.append(bh)
         data.append([]) #make as many arrays as there are briskheats
+
+def reconnect():
+    for bh in briskheats:
+        bh.close()
+    make_briskheats()
+    reconnect_tries++;
 
 #sends the same message to all the briskheats
 def mass_send(msg):
@@ -58,7 +67,6 @@ def dump_gather():
         dump_vals = mass_read();
         #print for testing purposes
         #print('dump_vals: ' + dump_vals.__str__())
-        #TODO: check if dump_vals is empty
         record = False
         for vals in dump_vals:
             if len(vals) != 0:
@@ -92,17 +100,29 @@ def parse(s):
         return 'error'
     
     error_code = s_arr[3][-4:] #trims the string down to it's last 4 characters
+    error_check(error_code)
+    if time == true:
+        opened_time = s_arr[1] + '.' + s_arr[0]
+        time = false
+    #print('s_arr: ' + s_arr.__str__())
+    temp = int(float(s_arr[7][2:8]) * 10) #temp changed from string to float, then it is multiplied by ten for int
+    return [temp] #can change how much information you want to return
+
+def error_check(code):
     if (error_code != '8001'): #error has happened
         error_msg = error_code + ': ' + error_ref[error_code]
         #TODO: not sure what to do with the error, store it for now
         raised_errors.append(s_arr)
         print('error msg: ' + error_msg.__str__())
-    if time == true:
-        opened_time = s_arr[1] + '.' + s_arr[0]
-        time = false
-    #print('s_arr: ' + s_arr.__str__())
-    temp = int(float(s_arr[7][2:8]) * 10) #temp is sanitized to float, then it is multiplied by ten for int
-    return [temp] #can change how much information you want to return
+        #todo: if communication error, restart;
+        if code in communication_errors:
+            reconnect()
+        if reconnect_tries > reconnect_try_limit or code == '8008' or code == '8010':
+            #todo: something theres a hardware error
+        if error == '8002' or error == '8004':
+            #todo: temperature is outside of temp limit
+        
+        
 
 #using pickle
 def save():
