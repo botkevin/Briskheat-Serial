@@ -27,7 +27,7 @@ error_ref = {
     '401' : 'STATUS_LINE_CTRL_COMM_BAD Communication error with heater line module',
     '000' : 'STATUS_HEATER_DISABLED Zone is disabled'
 }
-communication_errors = [8080, 8100, 8101, 8200, 8201, 8400, 8401]
+communication_errors = [080, 100, 101, 200, 201, 400, 401]
 reconnect_try_limit = 3
 reconnect_tries = 0;
 
@@ -112,7 +112,7 @@ def parse(s):
 
 def error_check(info):
     code = info[3][-3:] #trims the string down to it's last 3 characters
-    if (code != '8001'): #error has happened
+    if (code != '001'): #error has happened
         error_msg = code + ': ' + error_ref[code]
         #TODO: not sure what to do with the error, store it for now
         raised_errors.append(info)
@@ -123,7 +123,7 @@ def error_check(info):
         #todo: if communication error, restart;
         if code in communication_errors:
             reconnect()
-        if reconnect_tries > reconnect_try_limit or code == '8008' or code == '8010':
+        if reconnect_tries > reconnect_try_limit or code == '008' or code == '010':
             #todo: something theres a hardware error
             print("hardware error")
         if code == '002' or code == '004':
