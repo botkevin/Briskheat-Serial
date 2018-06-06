@@ -1,3 +1,8 @@
+
+################
+## DEPRECATED ##
+################
+
 import briskheat_serial_reader
 import time
 import pickle
@@ -71,7 +76,7 @@ def dump_gather():
         record = False
         for vals in dump_vals:
             if len(vals) != 0:
-                record = True;
+                record = True
         if record:
             buffer = []
             data_integrity = True
