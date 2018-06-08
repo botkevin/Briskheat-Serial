@@ -1,6 +1,7 @@
 import serial
 import time
 import re
+import pickle
 
 #connecting to Port COM3, check device manager
 #returns the initialized serialport
@@ -209,4 +210,20 @@ class Briskheat:
         
     def __repr__(self):
         return 'Port: ' + self.port + self.send_and_read('show')
+
+    #using pickle
+    def save(self):
+        #with open('briskheat' + opened_time + '.data', 'wb') as file:
+        #    pickle.dump({'opened_time' : opened_time, 'ports' : ports, 'data' : data}, file)
+        pickle_out = open('briskheat' + self.opened_time + '.data', 'wb')
+        pickle.dump({'opened_time' : self.opened_time, 'port' : self.port, 'data' : self.data}, pickle_out)
+        pickle_out.close()
+
+    def data_load(self, file_name):
+        rv = 'file failed to load'
+        #with open(file_name, 'rb') as file:
+        #    rv = pickle.load(file)
+        pickle_in = open(file_name,"rb")
+        rv = pickle.load(pickle_in)
+        return rv
 
