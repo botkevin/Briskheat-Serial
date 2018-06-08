@@ -1,5 +1,6 @@
 import serial
 import time
+import re
 
 #connecting to Port COM3, check device manager
 #returns the initialized serialport
@@ -23,7 +24,7 @@ class Briskheat:
         '401' : 'STATUS_LINE_CTRL_COMM_BAD Communication error with heater line module',
         '000' : 'STATUS_HEATER_DISABLED Zone is disabled'
     }
-    communication_errors = [080, 100, 101, 200, 201, 400, 401]
+    communication_errors = ['080', '100', '101', '200', '201', '400', '401']
     reconnect_try_limit = 3
     
     def __init__(self, path):
@@ -33,6 +34,7 @@ class Briskheat:
         self.reconnect_tries = 0
         self.data = {}
         self.connect()
+        self.raised_errors = []
 
     #opens serialport
     def open(self, path):
@@ -43,7 +45,6 @@ class Briskheat:
                 parity = serial.PARITY_NONE,
                 stopbits = serial.STOPBITS_ONE,
                 timeout=1,
-                write_timeout=1
                 )
         assert(self.ser.isOpen())
 
@@ -119,10 +120,9 @@ class Briskheat:
                     continue
 
     #gets list of zones
-    def sm():
-        r = self.send_and_read('sm')
-        zones = r.split('\r')[-1].split(', ')
-        return zones
+    def sm(self): #do you even parse bro?
+        bh.read()
+        return [int(i) for i in list(filter(lambda a: a != '',re.sub('[a-zA-Z,\r\n>]', '', self.send_and_read('sm')).split(' ')))]
                 
     #starts dump command for briskheat ez_terminal()
     def get_dump(self):
@@ -137,58 +137,66 @@ class Briskheat:
             self.read()
             return
 
-    def make_zones():
-        zones = sm()
-        for zone in zones
+    def make_zones(self):
+        zones = self.sm()
+        for zone in zones:
             self.data[zone] = []
 
     def save_dump(self):
         print("Press Ctrl-C to stop dump, this will not stop the program")
+        self.make_zones()
         self.send('dump')
         while True:
-            zones_data = self.read().split('\r')
-            for zone in zones_data:
-                if len(zone) != 0:
-                    record = True
+            info = self.read()
+#            print("info: " + info)
+            zones_data = info.split('\r\n')
+#            print("zones_data: " + zones_data.__str__())
+            record = True #change this too
+#            for zone in zones_data:
+#                if len(zone) != 0:
+#                    record = True
             if record:
                 for zone in zones_data:
-                    parsed_data = parse(zone)
-                    if parsed_data = []: #get help from dump gather
+#                    print("zone: " + zone.__str__())
+                    parsed_data = self.parse(zone)
+#                    print("parsed data: " + parsed_data.__str__())
+                    if parsed_data == []: #get help from dump gather
                         error_msg = "bad data error: one error every 1000 secs is normal"
-                        raised_errors.append(error_msg)
-                        print(error_msg)
+                        self.raised_errors.append(error_msg)
                         continue
                     #add temp to the array associated with the zone number
-                    self.data[parsed_data[0]].add[parsed_data[1]]
+                    self.data[parsed_data[0]].append(parsed_data[1])
             time.sleep(4.63)
 
     #parses the dump log.
-    def parse(s):
+    def parse(self, s):
         s_arr = s.split(' ')
+        #print("s_arr: " + s_arr.__str__())
         #0 = time, 1 = date, 2 = zone, 3 = status, 4 = set-point, 5 = high alarm limit,
         #6 = low alarm limit, 7 = actual temp, 8 = duty cycle, 9 = heater status
 
         if len(s_arr) != 10: #bad data, error
             return []
-        
-        error_check(s_arr)
+
+        #uncomment this later
+        #self.error_check(s_arr)
         if self.start == True:
             self.opened_time = s_arr[1] + '-' + re.sub(':', ';', s_arr[0])
             self.start = False
         #print('s_arr: ' + s_arr.__str__())
-        temp_C = int(float(s_arr[7][2:8]) * 10) #temperature in celsius, changed from string to float, then it is multiplied by ten for int
+        temp_C = int(float(re.sub('[A-Z]', '', s_arr[7])) * 10) #temperature in celsius, changed from string to float, then it is multiplied by ten for int
         z_num = int(s_arr[2][1:])
         return [z_num, temp_C] #can change how much information you want to return
 
-    def error_check(info):
+    def error_check(self, info):
         code = info[3][-3:] #trims the string down to it's last 3 characters
         if (code != '001'): #error has happened
             error_msg = code + ': ' + self.error_ref[code]
             #TODO: not sure what to do with the error, store it for now
-            raised_errors.append(info)
+            self.raised_errors.append(info)
             print('error msg: ' + error_msg.__str__())
 
-            print(raised_errors)
+            print(self.raised_errors)
             
             if code in self.communication_errors:
                 self.reconnect()
