@@ -28,14 +28,17 @@ class Briskheat:
     communication_errors = ['080', '100', '101', '200', '201', '400', '401']
     reconnect_try_limit = 3
     
-    def __init__(self, path):
+    def __init__(self, path, interval_x10, info_dir, error_dir):
         self.port = path
         self.open(path)
-        self.start = True
         self.reconnect_tries = 0
         self.data = {}
-        self.connect()
         self.raised_errors = []
+        assert(interval_x10 > 0)
+        self.interval = interval_x10
+        self.info_dir = info_dir
+        self.error_dir = error_dir
+        self.connect()
 
     #opens serialport
     def open(self, path):
@@ -141,30 +144,57 @@ class Briskheat:
             self.read()
             return
 
-    def make_zones(self):
-        zones = self.sm()
+    def make_zones(self, zones):
         for zone in zones:
-            self.data[zone] = []
+            self.data[zone] = ''
+
+    #starts a new file, will overwrite anything that exists
+    def start_csv(self):
+        f = open(self.info_dir, 'w')
+        row = 'Zone Temps in Celsius for port:, ' + self.port + '\n' +'Time, '
+        for zone in self.data.keys():
+            row += str(zone) + ', '
+        f.write(row + '\n')
+        f.close()
+        e = open(self.error_dir, 'w')
+        e.write('Time, Error, Zone, Dump\n')
+        e.close()
 
     def save_dump(self):
         self.read()
         print("Press Ctrl-C to stop dump, this will not stop the program")
-        self.make_zones()
+        zone_numbers = self.sm()
+        self.make_zones(zone_numbers)
+        self.start_csv()
         self.send('dump')
+        interval_count = self.interval - 1
         while True:
             info = self.read()
 #            print("info: " + info)
             zones_data = info.split('\r\n')
+            latest_time = ''
 #            print("zones_data: " + zones_data.__str__())
             if info != '':
                 for zone in zones_data:
 #                    print("zone: " + zone.__str__())
                     parsed_data = self.parse(zone)
 #                    print("parsed data: " + parsed_data.__str__())
-                    if parsed_data != []: #get help from dump gather
-                        #add temp to the array associated with the zone number
-                        self.data[parsed_data[0]].append(parsed_data[1])
+                    if parsed_data != []:
+                        #assign temp to the associated zone number
+                        self.data[parsed_data[0]] = parsed_data[1]
+                        latest_time = parsed_data[2]
+                interval_count += 1
             time.sleep(5)
+            if interval_count == self.interval:
+                interval_count = 0
+                row = latest_time + ', '
+                f = open(self.info_dir, 'a')
+                for zone in self.data.keys():
+                    info = str(self.data[zone])
+                    row += info[:-1] + '.' + info[-1:] + ', '
+                f.write(row + '\n')
+                f.close()
+                    
 
     #parses the dump log.
     def parse(self, s):
@@ -177,22 +207,28 @@ class Briskheat:
             return []
 
         self.error_check(s_arr)
-        if self.start == True:
-            self.opened_time = s_arr[1] + '_' + re.sub(':', '-', s_arr[0])
-            self.start = False
+#        if self.start == True:
+#            self.opened_time = s_arr[1] + '_' + re.sub(':', '-', s_arr[0])
+#            self.start = False
 #        print('s_arr: ' + s_arr.__str__())
         temp_C = int(float(re.sub('[A-Z]', '', s_arr[7])) * 10) #temperature in celsius, changed from string to float, then it is multiplied by ten for int
         z_num = int(s_arr[2][1:])
-        return [z_num, temp_C] #can change how much information you want to return
+        time = s_arr[1] + ', ' + s_arr[0]
+        return [z_num, temp_C, time] #can change how much information you want to return
 
     def error_check(self, info):
         code = info[3][-3:] #trims the string down to it's last 3 characters
         #IMPORTANT: I'm allowing disabled zones through for now, might change in final version
-        if (code != '001' or code != '000'): #error has happened
+        if (code != '001' and code != '000'): #error has happened
             error_msg = code + ': ' + self.error_ref[code]
             #TODO: not sure what to do with the error, store it for now
-            self.raised_errors.append(info)
-            print('error msg: ' + error_msg)
+            human_read = self.parse(info)
+            e = open(self.error_dir, 'w')
+            time = human_read[2]
+            z_num = human_read[0]
+            e.write(time + ', ' + error_msg + ', ' + zone + ',' + info.__str__() + '\n')
+            e.close()
+            #print('error msg: ' + error_msg)
 
             #print(self.raised_errors)
             
@@ -208,12 +244,14 @@ class Briskheat:
     def __repr__(self):
         return 'Port: ' + self.port + self.send_and_read('show')
 
+    # DEPRECATED #
     #using pickle
     def save(self):
         pickle_out = open('briskheat' + self.opened_time + '.data', 'wb')
         pickle.dump({'opened_time' : self.opened_time, 'port' : self.port, 'data' : self.data}, pickle_out)
         pickle_out.close()
 
+    # DEPRECATED #
     def data_load(self, file_name):
         rv = 'file failed to load'
         pickle_in = open(file_name,"rb")
