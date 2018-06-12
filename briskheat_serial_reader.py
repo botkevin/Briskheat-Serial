@@ -59,7 +59,7 @@ class Briskheat:
         message = message + "\r" #takes \r carriage return
         msg = message.encode('ascii')
         self.ser.write(msg)
-        time.sleep(1) #wait for briskheat to respond
+        time.sleep(.1) #wait for briskheat to respond
 
 
     #writes but does not wait
@@ -73,6 +73,9 @@ class Briskheat:
         out = ''
         while self.ser.inWaiting() > 0:
             out += self.ser.read(1).decode('ascii')
+        time.sleep(.1)
+        if self.ser.inWaiting() > 0:
+            out += self.read()
         return out
 
     #send and read
@@ -132,7 +135,7 @@ class Briskheat:
         try:
             while True:
                 print(self.read(), end='')
-                time.sleep(2)
+                time.sleep(5)
         except KeyboardInterrupt:
             time.sleep(.2)
             self.read()
@@ -144,6 +147,7 @@ class Briskheat:
             self.data[zone] = []
 
     def save_dump(self):
+        self.read()
         print("Press Ctrl-C to stop dump, this will not stop the program")
         self.make_zones()
         self.send('dump')
@@ -152,52 +156,45 @@ class Briskheat:
 #            print("info: " + info)
             zones_data = info.split('\r\n')
 #            print("zones_data: " + zones_data.__str__())
-            record = True #change this too
-#            for zone in zones_data:
-#                if len(zone) != 0:
-#                    record = True
-            if record:
+            if info != '':
                 for zone in zones_data:
 #                    print("zone: " + zone.__str__())
                     parsed_data = self.parse(zone)
 #                    print("parsed data: " + parsed_data.__str__())
-                    if parsed_data == []: #get help from dump gather
-                        error_msg = "bad data error: one error every 1000 secs is normal"
-                        self.raised_errors.append(error_msg)
-                        continue
-                    #add temp to the array associated with the zone number
-                    self.data[parsed_data[0]].append(parsed_data[1])
-            time.sleep(4.63)
+                    if parsed_data != []: #get help from dump gather
+                        #add temp to the array associated with the zone number
+                        self.data[parsed_data[0]].append(parsed_data[1])
+            time.sleep(5)
 
     #parses the dump log.
     def parse(self, s):
         s_arr = s.split(' ')
-        #print("s_arr: " + s_arr.__str__())
+#        print("s_arr: " + s_arr.__str__())
         #0 = time, 1 = date, 2 = zone, 3 = status, 4 = set-point, 5 = high alarm limit,
         #6 = low alarm limit, 7 = actual temp, 8 = duty cycle, 9 = heater status
 
         if len(s_arr) != 10: #bad data, error
             return []
 
-        #uncomment this later
-        #self.error_check(s_arr)
+        self.error_check(s_arr)
         if self.start == True:
-            self.opened_time = s_arr[1] + '-' + re.sub(':', ';', s_arr[0])
+            self.opened_time = s_arr[1] + '_' + re.sub(':', '-', s_arr[0])
             self.start = False
-        #print('s_arr: ' + s_arr.__str__())
+#        print('s_arr: ' + s_arr.__str__())
         temp_C = int(float(re.sub('[A-Z]', '', s_arr[7])) * 10) #temperature in celsius, changed from string to float, then it is multiplied by ten for int
         z_num = int(s_arr[2][1:])
         return [z_num, temp_C] #can change how much information you want to return
 
     def error_check(self, info):
         code = info[3][-3:] #trims the string down to it's last 3 characters
-        if (code != '001'): #error has happened
+        #IMPORTANT: I'm allowing disabled zones through for now, might change in final version
+        if (code != '001' or code != '000'): #error has happened
             error_msg = code + ': ' + self.error_ref[code]
             #TODO: not sure what to do with the error, store it for now
             self.raised_errors.append(info)
-            print('error msg: ' + error_msg.__str__())
+            print('error msg: ' + error_msg)
 
-            print(self.raised_errors)
+            #print(self.raised_errors)
             
             if code in self.communication_errors:
                 self.reconnect()
@@ -213,17 +210,12 @@ class Briskheat:
 
     #using pickle
     def save(self):
-        #with open('briskheat' + opened_time + '.data', 'wb') as file:
-        #    pickle.dump({'opened_time' : opened_time, 'ports' : ports, 'data' : data}, file)
         pickle_out = open('briskheat' + self.opened_time + '.data', 'wb')
         pickle.dump({'opened_time' : self.opened_time, 'port' : self.port, 'data' : self.data}, pickle_out)
         pickle_out.close()
 
     def data_load(self, file_name):
         rv = 'file failed to load'
-        #with open(file_name, 'rb') as file:
-        #    rv = pickle.load(file)
         pickle_in = open(file_name,"rb")
         rv = pickle.load(pickle_in)
         return rv
-
