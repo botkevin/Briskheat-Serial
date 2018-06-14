@@ -2,10 +2,15 @@ import serial
 import time
 import re
 import pickle
+import datetime
 
-#connecting to Port COM3, check device manager
-#returns the initialized serialport
-#TODO: find out a way to raise an error if no connection
+'''
+This file will interact with the Briskheat, taking parameters of the port to open, interval in units of 10 seconds,
+directory and filename to store the info, and directory filename for status.
+Use once the briskheat object is created, use save_dump() to start logging. 
+Use ez_terminal() to connect and interact with the Briskheat if debugging/ managing briskheats
+Disabled zones are currently not counted as errors, see: IMPORTANT.
+'''
 
 class Briskheat:
     #Serial ser;
@@ -27,8 +32,10 @@ class Briskheat:
     }
     communication_errors = ['080', '100', '101', '200', '201', '400', '401']
     reconnect_try_limit = 3
-    
-    def __init__(self, path, interval_x10, info_dir, error_dir):
+
+    # @params port to open, interval: unit of time is ten seconds,
+    #         directory and filename to store the info, and directory filename for status
+    def __init__(self, path, interval_x10, info_dir, status_dir):
         self.port = path
         self.open(path)
         self.reconnect_tries = 0
@@ -37,7 +44,7 @@ class Briskheat:
         assert(interval_x10 > 0)
         self.interval = interval_x10
         self.info_dir = info_dir
-        self.error_dir = error_dir
+        self.status_dir = status_dir
         self.connect()
 
     #opens serialport
@@ -59,7 +66,7 @@ class Briskheat:
 
     #writes to briskheat
     def send(self, message):
-        message = message + "\r" #takes \r carriage return
+        message = message + "\r" #takes \r carriage return as end of message protocal
         msg = message.encode('ascii')
         self.ser.write(msg)
         time.sleep(.1) #wait for briskheat to respond
@@ -67,7 +74,7 @@ class Briskheat:
 
     #writes but does not wait
     def quick_send(self, message):
-        message = message + "\r" #takes \r carriage return
+        message = message + "\r" #refer to above
         msg = message.encode('ascii')
         self.ser.write(msg)
 
@@ -77,7 +84,7 @@ class Briskheat:
         while self.ser.inWaiting() > 0:
             out += self.ser.read(1).decode('ascii')
         time.sleep(.1)
-        if self.ser.inWaiting() > 0:
+        if self.ser.inWaiting() > 0: #tests if the briskheat is done outputting
             out += self.read()
         return out
 
@@ -86,6 +93,7 @@ class Briskheat:
         self.send(message)
         return self.read()
 
+    #debug tool to send, read, and print
     def wPrint(self, message):
         print(self.send_and_read(message), end='') #no newline print
 
@@ -95,14 +103,19 @@ class Briskheat:
         self.send_and_read(pswd)
         time.sleep(.5)
         self.send_and_read(pswd)
+        self.open_time = str(datetime.datetime.now())
 
     #closes connection to the briskheat
     def close(self):
         self.wPrint('bye')
         self.ser.close()
+        e = open(self.status_dir, 'a')
+        e.write('Graceful exit:, ' + str(datetime.datetime.now()) +'\n')
+        e.close()
 
     #user friendly terminal interface for briskheat interaction, enter '?' to see commands   
     def ez_terminal(self):
+        print("BriskHeat Interface Terminal. Enter '?' for help.")
         print('BH> ', end='')
         while True:
             try:
@@ -148,18 +161,21 @@ class Briskheat:
         for zone in zones:
             self.data[zone] = ''
 
-    #starts a new file, will overwrite anything that exists
+    #starts a new file for status and info logs
     def start_csv(self):
-        f = open(self.info_dir, 'w')
+        f = open(self.info_dir, 'a')
         row = 'Zone Temps in Celsius for port:, ' + self.port + '\n' +'Time, '
         for zone in self.data.keys():
             row += str(zone) + ', '
         f.write(row + '\n')
         f.close()
-        e = open(self.error_dir, 'w')
-        e.write('Time, Error, Zone, Dump\n')
+        e = open(self.status_dir, 'a')
+        e.write('Port:, ' + self.port + '\n')
+        e.write('Opened Time:, ' + self.open_time + '\n')
         e.close()
 
+
+    #saves the info
     def save_dump(self):
         self.read()
         print("Press Ctrl-C to stop dump, this will not stop the program")
@@ -167,33 +183,42 @@ class Briskheat:
         self.make_zones(zone_numbers)
         self.start_csv()
         self.send('dump')
+        e = open(self.status_dir, 'a')
+        e.write('Dump start time:, ' + str(datetime.datetime.now()) +'\n')
+        e.write('Time, Error, Zone, Dump\n')
         interval_count = self.interval - 1
-        while True:
-            info = self.read()
-#            print("info: " + info)
-            zones_data = info.split('\r\n')
-            latest_time = ''
-#            print("zones_data: " + zones_data.__str__())
-            if info != '':
-                for zone in zones_data:
-#                    print("zone: " + zone.__str__())
-                    parsed_data = self.parse(zone)
-#                    print("parsed data: " + parsed_data.__str__())
-                    if parsed_data != []:
-                        #assign temp to the associated zone number
-                        self.data[parsed_data[0]] = parsed_data[1]
-                        latest_time = parsed_data[2]
-                interval_count += 1
-            time.sleep(5)
-            if interval_count == self.interval:
-                interval_count = 0
-                row = latest_time + ', '
-                f = open(self.info_dir, 'a')
-                for zone in self.data.keys():
-                    info = str(self.data[zone])
-                    row += info[:-1] + '.' + info[-1:] + ', '
-                f.write(row + '\n')
-                f.close()
+        try:
+            while True:
+                info = self.read()
+    #            print("info: " + info)
+                zones_data = info.split('\r\n')
+                latest_time = ''
+    #            print("zones_data: " + zones_data.__str__())
+                if info != '':
+                    interval_count += 1
+                    if interval_count == self.interval:
+                        interval_count = 0
+                        for zone in zones_data:
+        #                    print("zone: " + zone.__str__())
+                            parsed_data = self.parse(zone)
+        #                    print("parsed data: " + parsed_data.__str__())
+                            if parsed_data != []:
+                                #assign temp to the associated zone number
+                                self.data[parsed_data[0]] = parsed_data[1]
+                                latest_time = parsed_data[2]
+                        row = latest_time + ', '
+                        f = open(self.info_dir, 'a')
+                        for zone in self.data.keys():
+                            info = str(self.data[zone])
+                            row += info[:-1] + '.' + info[-1:] + ', '
+                        f.write(row + '\n')
+                        f.close() 
+                time.sleep(5)
+        except KeyboardInterrupt:
+            print('Dump stopped')
+            e = open(self.status_dir, 'a')
+            e.write('Dump stop time:, ' + str(datetime.datetime.now()) +'\n')
+            e.close()
                     
 
     #parses the dump log.
@@ -202,15 +227,8 @@ class Briskheat:
 #        print("s_arr: " + s_arr.__str__())
         #0 = time, 1 = date, 2 = zone, 3 = status, 4 = set-point, 5 = high alarm limit,
         #6 = low alarm limit, 7 = actual temp, 8 = duty cycle, 9 = heater status
-
         if len(s_arr) != 10: #bad data, error
             return []
-
-        self.error_check(s_arr)
-#        if self.start == True:
-#            self.opened_time = s_arr[1] + '_' + re.sub(':', '-', s_arr[0])
-#            self.start = False
-#        print('s_arr: ' + s_arr.__str__())
         temp_C = int(float(re.sub('[A-Z]', '', s_arr[7])) * 10) #temperature in celsius, changed from string to float, then it is multiplied by ten for int
         z_num = int(s_arr[2][1:])
         time = s_arr[1] + ', ' + s_arr[0]
@@ -223,7 +241,7 @@ class Briskheat:
             error_msg = code + ': ' + self.error_ref[code]
             #TODO: not sure what to do with the error, store it for now
             human_read = self.parse(info)
-            e = open(self.error_dir, 'w')
+            e = open(self.status_dir, 'a')
             time = human_read[2]
             z_num = human_read[0]
             e.write(time + ', ' + error_msg + ', ' + zone + ',' + info.__str__() + '\n')
@@ -243,17 +261,3 @@ class Briskheat:
         
     def __repr__(self):
         return 'Port: ' + self.port + self.send_and_read('show')
-
-    # DEPRECATED #
-    #using pickle
-    def save(self):
-        pickle_out = open('briskheat' + self.opened_time + '.data', 'wb')
-        pickle.dump({'opened_time' : self.opened_time, 'port' : self.port, 'data' : self.data}, pickle_out)
-        pickle_out.close()
-
-    # DEPRECATED #
-    def data_load(self, file_name):
-        rv = 'file failed to load'
-        pickle_in = open(file_name,"rb")
-        rv = pickle.load(pickle_in)
-        return rv
