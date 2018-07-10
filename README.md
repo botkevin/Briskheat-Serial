@@ -6,7 +6,7 @@ Files in use in latest version are briskheat_serialreader.py and database_interf
 This is the bread and butter of the program. It connects to the Briskheat and handles the connection and parsing.
 To run the serial_reader, first initialize class ```Briskheat``` and then run the command ```save_dump()``` on the new object.
 
-####Initializing Briskheat
+#####Initializing Briskheat
 Initialization requires several parameters
 - path : port to open,
 - poll_interval_x10 : interval to poll data: unit of time is ten seconds,
@@ -20,6 +20,17 @@ Initialization requires several parameters
 - lt: log table to store status and log messages
 For example, running: 
 ```
-bh = bsr.Briskheat('/dev/ttyUSB0', 30, 20, 'status.CSV', 'sql_host', 'user1', 'hunter2', 'briskheat', 'Tool_HHT01', 'Status_HHT01')
+bh = bsr.Briskheat('/dev/ttyUSB0', 30, 20, 'status.CSV', 'sql_host', 'user1', 'hunter2', 'briskheat', 'Temp_HHT01', 'Status_HHT01')
 ```
-will generate a Briskheat object called bh that reads from the usb device mounted on '/dev/ttyUSB0', have a poll interval of 30 x 10 seconds(5 min). the interval of sending the stored up cache of data will be 20 x poll interval, so 20 x 5 min(1 hour).
+will generate a Briskheat object called bh that 
+- reads from the usb device mounted on '/dev/ttyUSB0'
+- have a poll interval of 30 x 10 seconds(5 min)
+- the interval of sending the stored up cache of data will be 20 x poll interval, so 20 x 5 min(1 hour)
+- store status and log messages in a file called 'status.CSV'
+- connect to a database using the
+  - host with the name 'sql_host'
+  - password 'hunter2'
+  - database 'briskheat'
+  - table for storing temperatures 'Temp_HHT01'
+  - table for storing status and log messages 'Status_HHT01'
+  
