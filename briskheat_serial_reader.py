@@ -224,6 +224,7 @@ class Briskheat:
             e = open(self.status_dir, 'a')
             e.write('Dump stop time:, ' + str(datetime.datetime.now()) +'\n')
             e.close()
+            self.log.write(str(datetime.datetime.now())[:-7], 1)
 
     def send_sql(self):
         #TODO: send self.data which is a dictionary
