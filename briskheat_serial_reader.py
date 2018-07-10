@@ -1,8 +1,10 @@
+# @author Kevin Shi
+
 import serial
 import time
 import re
-import pickle
 import datetime
+import database_interface
 
 '''
 This file will interact with the Briskheat, taking parameters of the port to open, interval in units of 10 seconds,
@@ -13,8 +15,6 @@ Disabled zones are currently not counted as errors, see: IMPORTANT.
 '''
 
 class Briskheat:
-    #Serial ser;
-    #String port
     error_ref = {    
         '001' : 'STATUS_OK Current temperature is within alarm limits',
         '002' : 'STATUS_HIGH Current temperature is above high alarm limit',
@@ -33,18 +33,30 @@ class Briskheat:
     communication_errors = ['080', '100', '101', '200', '201', '400', '401']
     reconnect_try_limit = 3
 
-    # @params port to open, interval: unit of time is ten seconds,
-    #         directory and filename to store the info, and directory filename for status
-    def __init__(self, path, interval_x10, info_dir, status_dir):
+    # @params path : port to open,
+    #         poll_interval_x10 : interval to poll data: unit of time is ten seconds,
+    #         sql_interval_xpoll : interval to send information to datase: unit of time is 1 poll interval
+    #         status_dir : directory to write status and log messages to
+    #         host : host of sql databse
+    #         user : username for the sql server
+    #         pswd : password for the sql server
+    #         db : sql database name
+    #         t : table name to store the data in
+    #         lt: log table to store status and log messages
+    # See testBriskheatSql.py for example of usage
+    def __init__(self, path, poll_interval_x10, sql_interval_xpoll, status_dir, host, user, pswd, db, t, lt):
         self.port = path
         self.open(path)
         self.reconnect_tries = 0
         self.data = {}
         self.raised_errors = []
-        assert(interval_x10 > 0)
-        self.interval = interval_x10
-        self.info_dir = info_dir
+        assert(poll_interval_x10 > 0)
+        self.poll_interval = poll_interval_x10
+        assert(sql_interval_xpoll > 0)
+        self.sql_interval = sql_interval_xpoll
         self.status_dir = status_dir
+        self.db = database_interface.database_interface(host, user, pswd, db, t)
+        self.log = database_interface.database_interface(host, user, pswd, db, lt)
         self.connect()
 
     #opens serialport
@@ -141,7 +153,7 @@ class Briskheat:
 
     #gets list of zones
     def sm(self): #do you even parse bro?
-        bh.read()
+        self.read()
         return [int(i) for i in list(filter(lambda a: a != '',re.sub('[a-zA-Z,\r\n>]', '', self.send_and_read('sm')).split(' ')))]
                 
     #starts dump command for briskheat ez_terminal()
@@ -159,67 +171,65 @@ class Briskheat:
 
     def make_zones(self, zones):
         for zone in zones:
-            self.data[zone] = ''
+            self.data[zone] = []
 
-    #starts a new file for status and info logs
-    def start_csv(self):
-        f = open(self.info_dir, 'a')
-        row = 'Zone Temps in Celsius for port:, ' + self.port + '\n' +'Time, '
-        for zone in self.data.keys():
-            row += str(zone) + ', '
-        f.write(row + '\n')
-        f.close()
+    #starts a new file for status logs
+    def start_log(self):
         e = open(self.status_dir, 'a')
         e.write('Port:, ' + self.port + '\n')
         e.write('Opened Time:, ' + self.open_time + '\n')
         e.close()
-
+        self.log.write_start_stop(self.open_time, 0)
 
     #saves the info
     def save_dump(self):
         self.read()
         print("Press Ctrl-C to stop dump, this will not stop the program")
-        zone_numbers = self.sm()
-        self.make_zones(zone_numbers)
-        self.start_csv()
+        self.zone_numbers = self.sm()
+        self.time = []
+        self.make_zones(self.zone_numbers)
         self.send('dump')
+        self.start_log()
         e = open(self.status_dir, 'a')
         e.write('Dump start time:, ' + str(datetime.datetime.now()) +'\n')
         e.write('Time, Error, Zone, Dump\n')
-        interval_count = self.interval - 1
+        poll_interval_count = self.poll_interval - 1
+        sql_interval_count = self.sql_interval - 1
         try:
             while True:
                 info = self.read()
     #            print("info: " + info)
                 zones_data = info.split('\r\n')
-                latest_time = ''
     #            print("zones_data: " + zones_data.__str__())
                 if info != '':
-                    interval_count += 1
-                    if interval_count == self.interval:
-                        interval_count = 0
+                    poll_interval_count += 1
+                    if poll_interval_count == self.poll_interval:
+                        poll_interval_count = 0
+                        sql_interval_count += 1
                         for zone in zones_data:
         #                    print("zone: " + zone.__str__())
                             parsed_data = self.parse(zone)
         #                    print("parsed data: " + parsed_data.__str__())
                             if parsed_data != []:
                                 #assign temp to the associated zone number
-                                self.data[parsed_data[0]] = parsed_data[1]
-                                latest_time = parsed_data[2]
-                        row = latest_time + ', '
-                        f = open(self.info_dir, 'a')
-                        for zone in self.data.keys():
-                            info = str(self.data[zone])
-                            row += info[:-1] + '.' + info[-1:] + ', '
-                        f.write(row + '\n')
-                        f.close() 
+                                self.data[parsed_data[0]].append(parsed_data[1])
+                                if self.time == [] or self.time[-1] != parsed_data[2]:
+                                    self.time.append(parsed_data[2])
+                    if sql_interval_count == self.sql_interval:
+                        self.send_sql()
+                        sql_interval_count = 0
                 time.sleep(5)
         except KeyboardInterrupt:
             print('Dump stopped')
             e = open(self.status_dir, 'a')
             e.write('Dump stop time:, ' + str(datetime.datetime.now()) +'\n')
             e.close()
-                    
+
+    def send_sql(self):
+        #TODO: send self.data which is a dictionary
+        self.db.write(self.time, self.data)
+        self.make_zones(self.zone_numbers)
+        self.time = []
 
     #parses the dump log.
     def parse(self, s):
@@ -229,9 +239,11 @@ class Briskheat:
         #6 = low alarm limit, 7 = actual temp, 8 = duty cycle, 9 = heater status
         if len(s_arr) != 10: #bad data, error
             return []
-        temp_C = int(float(re.sub('[A-Z]', '', s_arr[7])) * 10) #temperature in celsius, changed from string to float, then it is multiplied by ten for int
+        temp_C = float(re.sub('[A-Z]', '', s_arr[7])) #temperature in celsius, changed from string to float
         z_num = int(s_arr[2][1:])
-        time = s_arr[1] + ', ' + s_arr[0]
+        z = s_arr[1]
+        date = z[0:4] + '-' + z[4:6] + '-' + z[6:]
+        time = date + ' ' + s_arr[0]
         return [z_num, temp_C, time] #can change how much information you want to return
 
     def error_check(self, info):
@@ -246,10 +258,9 @@ class Briskheat:
             z_num = human_read[0]
             e.write(time + ', ' + error_msg + ', ' + zone + ',' + info.__str__() + '\n')
             e.close()
+            self.log.write_log(time, zone, code, self.error_ref[code], str(info))
             #print('error msg: ' + error_msg)
-
             #print(self.raised_errors)
-            
             if code in self.communication_errors:
                 self.reconnect()
             if self.reconnect_tries > self.reconnect_try_limit or code == '008' or code == '010':
