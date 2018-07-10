@@ -13,6 +13,7 @@ Briskheat-Serial requires the libraries:
 - datetime
 - mysql.connector
 - pyserial
+
 The latter two not being apart of the python standard library
 
 ## ```briskheat_serial_reader.py```
