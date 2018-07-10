@@ -23,7 +23,7 @@ To debug and have further communication/control of the Briskheat, run ```ez_term
 #### Example
 Running: 
 ```
-bh = bsr.Briskheat('/dev/ttyUSB0', 30, 20, 'status.CSV', 'sql_host', 'user1', 'hunter2', 'briskheat', 'Temp_HHT01', 'Status_HHT01')
+bh = Briskheat('/dev/ttyUSB0', 30, 20, 'status.CSV', 'sql_host', 'user1', 'hunter2', 'briskheat', 'Temp_HHT01', 'Status_HHT01')
 ```
 will generate a Briskheat object called bh that 
 - reads from the usb device mounted on '/dev/ttyUSB0'
