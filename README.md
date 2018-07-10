@@ -3,7 +3,7 @@ Briskheat Serial Communication Analysis
 A tool for connecting to the Centipede Briskheat tool for measuring temperatures through RS-232 port. 
 Files in use in latest version are briskheat_serialreader.py and database_interface.py
 
-## ```briskheat_serialreader.py```
+## ```briskheat_serial_reader.py```
 This is the bread and butter of the program. It connects to the Briskheat and handles the connection and parsing.
 To run the serial_reader, first initialize class ```Briskheat``` and then run the command ```save_dump()``` on the new object.
 To debug and have further communication/control of the Briskheat, run ```ez_terminal()``` on the object.
