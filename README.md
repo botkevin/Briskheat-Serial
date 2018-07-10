@@ -36,6 +36,9 @@ will generate a Briskheat object called bh that
   - database 'briskheat'
   - table for storing temperatures 'Temp_HHT01'
   - table for storing status and log messages 'Status_HHT01'
+#### How it Works
+Briskheat uses pyserial to connect to the serial port, connecting using parameters as defined in ```open```. It establishes to the briskheat using the default password 'briskheat' and uses methods to send and read from the briskheat.
+Briskheat also utilizes the program ```database_interface.py``` which, using the parameters given in initialization, generates a connection between the program and the sql database specified. The user should never have to work directly with ```database_interface.py```.
   
 ### Starting the Recording Process
 #### Using the command
