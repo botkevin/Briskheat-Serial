@@ -124,6 +124,7 @@ class Briskheat:
         e = open(self.status_dir, 'a')
         e.write('Graceful exit:, ' + str(datetime.datetime.now()) +'\n')
         e.close()
+        
 
     #user friendly terminal interface for briskheat interaction, enter '?' to see commands   
     def ez_terminal(self):
