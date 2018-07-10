@@ -37,9 +37,14 @@ will generate a Briskheat object called bh that
   - table for storing temperatures 'Temp_HHT01'
   - table for storing status and log messages 'Status_HHT01'
   
-### Starting the recording process
+### Starting the Recording Process
 #### Using the command
 To start the process of recording temperatures, run the command ```save_dump()``` on the object
 #### Example
 Using the previous object created in the previous example, ```bh```, running the following command will start the recording process:
 ```bh.save_dump()```
+
+### Debugging and Further Control
+Run ```ez_terminal``` on the object and in terminal, a mini-terminal will start with ```BH > ```. From here, more commands can be run. By pressing '?' and enter, further help and commands will show.
+
+<sub><sup>> Note with the current build, disabled zones will not send error messages as to not spam the status log with unimportant error messages and dilute the file. If needed to change, navigate to error check and delete ```code != '001'```</sup></sub>
