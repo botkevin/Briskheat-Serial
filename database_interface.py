@@ -30,13 +30,13 @@ class database_interface:
         # print(command)
         self.cursor.execute(command)
         self.mariadb_connection.commit()
-
+                 
     # status message writer writing errors and start stop times to sql table
     # params time : time of error,
     #        Status : ID number representing error. See table in README for details | value representing start or stop
     #        Zone: the zone that the error happened
-    #        msg: the message corresponding to the ErrorID
-    def write_log(self, time, StatusID, zone = 'null', msg = 'null'):
-        self.cursor.execute('INSERT INTO ' + self.table + '(ts, identifier, StatusID, zone, msg) VALUES ("'
-                            + time + '", ' + self.tool+self.port + ', '+ str(StatusID) + ', ' + str(zone) + ', ' + msg + ')')
+    #        msg: the message corresponding to the StatusID
+    def write_log(self, time, StatusID, zone = 'NULL', msg = 'NULL'):
+        self.cursor.execute('INSERT INTO ' + self.table + ' (ts, identifier, StatusID, zone, msg) VALUES ("'
+                            + time + '", "' + self.tool+self.port + '", "'+ str(StatusID) + '", ' + str(zone) + ', "' + msg + '")')
         self.mariadb_connection.commit()
