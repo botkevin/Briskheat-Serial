@@ -37,7 +37,7 @@ To debug and have further communication/control of the Briskheat, run ```ez_term
 
 #### Example
 Running: 
-```
+```python
 bh = Briskheat('HHT01', '/dev/ttyUSB0', 30, 20, 'status.CSV', 'sql_host', 'user1', 'hunter2', 'briskheat', 'Temp_HHT01', 'Status_HHT01')
 ```
 will generate a Briskheat object called bh that
@@ -74,6 +74,7 @@ The user should never have to directly interact with this file, but will need to
 
 ### Tables
 There should be two tables that each briskheat will connect to. The temperature table and the logging table.
+
 #### Temperature Table
 Each tool should have its own temperature table. It would be wise to have a common nomenclature between these tables, such as Briskheat_HHT01 for the tool HHT01. The temperature table should have a similar format to as the following:
 
@@ -85,7 +86,42 @@ Each tool should have its own temperature table. It would be wise to have a comm
 | z03   | float(3,1) | YES  |     | NULL    |       |
 | z04   | float(3,1) | YES  |     | NULL    |       |
 | z05   | float(3,1) | YES  |     | NULL    |       |
-| z06   | float(3,1) | YES  |     | NULL    |       |
 | ... | ... | ... | ... | ... | ...|
 
 ... and so on ...
+
+The first line should be a timestamp and the primary key; the subsequent lines should be zone numbers. Make sure that when setting up the temperature table, there are as many zone columns as there are zones attached to the briskheat. To do this, use the briskheat object (which can be found in config.py if setup earlier) and call the method ```sm()``` or use ```ez_terminal()``` and input sm and then enter. This will show the zones. Be careful because the zones may not be numbered sequentially, the briskheat allows for zone assignment, so there could be pseudorandom numbering.
+
+A basic framework for setting up this table would be:
+```sql
+CREATE TABLE IF NOT EXISTS briskheat_*tool* (
+  ts DATETIME NOT NULL PRIMARY KEY,
+  z01 FLOAT(3,1), z02 FLOAT(3,1), z03 FLOAT(3,1), z04 FLOAT(3,1), z05 FLOAT(3,1),
+  ...
+  );
+ ```
+
+#### Status Table
+There should only be one status table for all of the tools, or maybe one per group of tools. The table should be setup up like so:
+
+| Field      | Type         | Null | Key | Default | Extra          |
+|----------- | ------------ | ---- | --- | ------- | -------------- |
+| ID         | int(11)      | NO   | PRI | NULL    | auto_increment |
+| ts         | datetime     | NO   |     | NULL    |                |
+| identifier | varchar(32)  | YES  |     | NULL    |                |
+| StatusID   | varchar(16)  | YES  |     | NULL    |                |
+| zone       | int(4)       | YES  |     | NULL    |                |
+| msg        | varchar(256) | YES  |     | NULL    |                |
+
+This time the field names are important and should not be changed, if they must, then the field names in method ```write_log() ``` in ```database.py``` should be changed as well.
+
+A basic framework for setting up this table would be:
+```sql
+CREATE TABLE IF NOT EXISTS status_briskheat (
+	ID INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+	ts DATETIME NOT NULL,
+	StatusID VARCHAR(8),
+	zone INT(4),
+	msg VARCHAR(256)
+  );
+ ```
