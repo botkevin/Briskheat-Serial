@@ -33,7 +33,8 @@ class Briskheat:
     communication_errors = ['080', '100', '101', '200', '201', '400', '401']
     reconnect_try_limit = 3
 
-    # @params path : port to open,
+    # @params tool : name of tool this briskheat is monitoring
+    #         path : port to open,
     #         poll_interval_x10 : interval to poll data: unit of time is ten seconds,
     #         sql_interval_xpoll : interval to send information to datase: unit of time is 1 poll interval
     #         status_dir : directory to write status and log messages to
@@ -44,7 +45,7 @@ class Briskheat:
     #         t : table name to store the data in
     #         lt: log table to store status and log messages
     # See testBriskheatSql.py for example of usage
-    def __init__(self, path, poll_interval_x10, sql_interval_xpoll, status_dir, host, user, pswd, db, t, lt):
+    def __init__(self, tool, path, poll_interval_x10, sql_interval_xpoll, status_dir, host, user, pswd, db, t, lt):
         self.port = path
         self.open(path)
         self.reconnect_tries = 0
@@ -56,7 +57,7 @@ class Briskheat:
         self.sql_interval = sql_interval_xpoll
         self.status_dir = status_dir
         self.db = database_interface.database_interface(host, user, pswd, db, t)
-        self.log = database_interface.database_interface(host, user, pswd, db, lt)
+        self.log = database_interface.database_interface(host, user, pswd, db, lt, tool, path)
         self.connect()
 
     #opens serialport
@@ -180,7 +181,7 @@ class Briskheat:
         e.write('Port:, ' + self.port + '\n')
         e.write('Opened Time:, ' + self.open_time + '\n')
         e.close()
-        self.log.write_start_stop(self.open_time, 0)
+        self.log.write_log(self.open_time, 'Start Dump')
 
     #saves the info
     def save_dump(self):
@@ -225,7 +226,7 @@ class Briskheat:
             e = open(self.status_dir, 'a')
             e.write('Dump stop time:, ' + str(datetime.datetime.now()) +'\n')
             e.close()
-            self.log.write(str(datetime.datetime.now())[:-7], 1)
+            self.log.write_log(str(datetime.datetime.now())[:-7], 'Stop Dump')
 
     def send_sql(self):
         #TODO: send self.data which is a dictionary
@@ -260,7 +261,7 @@ class Briskheat:
             z_num = human_read[0]
             e.write(time + ', ' + error_msg + ', ' + zone + ',' + info.__str__() + '\n')
             e.close()
-            self.log.write_log(time, zone, code, self.error_ref[code], str(info))
+            self.log.write_log(time, 'err:' + code, zone, self.error_ref[code])
             #print('error msg: ' + error_msg)
             #print(self.raised_errors)
             if code in self.communication_errors:
