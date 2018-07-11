@@ -76,9 +76,8 @@ The user should never have to directly interact with this file, but will need to
 There should be two tables that each briskheat will connect to. The temperature table and the logging table.
 #### Temperature Table
 Each tool should have its own temperature table. It would be wise to have a common nomenclature between these tables, such as Briskheat_HHT01 for the tool HHT01. The temperature table should have a similar format to as the following:
-+-------+------------+------+-----+---------+-------+
 | Field | Type       | Null | Key | Default | Extra |
-+-------+------------+------+-----+---------+-------+
+|-------|------------|------|-----|---------|-------|
 | ts    | datetime   | NO   | PRI | NULL    |       |
 | z01   | float(3,1) | YES  |     | NULL    |       |
 | z02   | float(3,1) | YES  |     | NULL    |       |
