@@ -87,4 +87,5 @@ Each tool should have its own temperature table. It would be wise to have a comm
 | z05   | float(3,1) | YES  |     | NULL    |       |
 | z06   | float(3,1) | YES  |     | NULL    |       |
 | ... | ... | ... | ... | ... | ...|
+
 ... and so on ...
