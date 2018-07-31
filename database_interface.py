@@ -6,11 +6,14 @@ class database_interface:
 
     # params host, user, password, database, table
     def __init__(self, h, u, pswd, db, t, tool = '', port = ''):
-        self.mariadb_connection = mariadb.connect(host = h, user = u, password = pswd, database = db)
-        self.cursor = self.mariadb_connection.cursor()
-        self.table = t
-        self.tool = tool
-        self.port = port
+        try:
+            self.mariadb_connection = mariadb.connect(host = h, user = u, password = pswd, database = db)
+            self.cursor = self.mariadb_connection.cursor()
+            self.table = t
+            self.tool = tool
+            self.port = port
+        except Exception as e:
+            raise NotImplementedError
 
     #takes specifically what data briskheat_serial_reader.py will give it and formats the data so that it can be sent to a database
     #self, time is a array of times, data is a dictionary of arrays
