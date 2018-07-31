@@ -56,8 +56,13 @@ class Briskheat:
         assert(sql_interval_xpoll > 0)
         self.sql_interval = sql_interval_xpoll
         self.status_dir = status_dir
-        self.db = database_interface.database_interface(host, user, pswd, db, t)
-        self.log = database_interface.database_interface(host, user, pswd, db, lt, tool, path)
+        try:
+            self.db = database_interface.database_interface(host, user, pswd, db, t)
+            self.log = database_interface.database_interface(host, user, pswd, db, lt, tool, path)
+        except NotImplementedError:
+            e = open(self.status_dir, 'a')
+            e.write('SQL connection error:, ' + str(datetime.datetime.now()) +'\n')
+            e.close()
         self.connect()
 
     #opens serialport
