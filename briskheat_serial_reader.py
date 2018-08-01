@@ -56,6 +56,10 @@ class Briskheat:
         assert(sql_interval_xpoll > 0)
         self.sql_interval = sql_interval_xpoll
         self.status_dir = status_dir
+        self.connect_sql()
+        self.connect()
+
+     def connect_sql(self):
         try:
             self.db = database_interface.database_interface(host, user, pswd, db, t)
             self.log = database_interface.database_interface(host, user, pswd, db, lt, tool, path)
@@ -63,8 +67,9 @@ class Briskheat:
             e = open(self.status_dir, 'a')
             e.write('SQL connection error:, ' + str(datetime.datetime.now()) +'\n')
             e.close()
-        self.connect()
-
+            time.sleep(20)
+            self.connect_sql()
+            
     #opens serialport
     def open(self, path):
         self.ser = serial.Serial(
