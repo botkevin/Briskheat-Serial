@@ -125,3 +125,4 @@ CREATE TABLE IF NOT EXISTS status_briskheat (
 	msg VARCHAR(256)
   );
  ```
+Important Files: ```database_interface.py```, ```config_writer.py```, ```briskheat_serial_reader.py```
