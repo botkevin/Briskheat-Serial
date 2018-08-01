@@ -33,7 +33,7 @@ class database_interface:
         # print(command)
         self.cursor.execute(command)
         self.mariadb_connection.commit()
-                 
+
     # status message writer writing errors and start stop times to sql table
     # params time : time of error,
     #        Status : ID number representing error. See table in README for details | value representing start or stop
