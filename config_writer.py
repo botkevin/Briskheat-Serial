@@ -1,6 +1,8 @@
 # @author Kevin Shi
 print('Welcome to the config writer')
 print('Enter the following parameters and a config.py file will be outputted, which can then be run to start the program')
+print('Tool:')
+port = "'" + input() + "', "
 print('Port:')
 port = "'" + input() + "', "
 print('Poll Interval (x10 sec): ')
@@ -35,7 +37,7 @@ password = ''
 #change this for Briskheat params
 def config_briskheat():
     global bh
-    bh = bsr.Briskheat("""+port+p_interval+s_interval+status_dir+host+user+db+t+lt+""")
+    bh = bsr.Briskheat("""tool+port+p_interval+s_interval+status_dir+host+user+db+t+lt+""")
 
 #gets password
 def password_input():
