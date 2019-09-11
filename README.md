@@ -4,7 +4,7 @@ A tool for connecting to the Centipede Briskheat tool for measuring temperatures
 Files in use in latest version are briskheat_serialreader.py and database_interface.py
 
 ## Quickstart
-If you just want it to run, ```just run config_writer.py```, which will prompt you to answer some questions. After finished, ```config_writer.py``` will output ```config.py```. ```config.py``` ~~will prompt for a password, and~~ will then proceed to run the whole program. No further interaction needed!
+If you just want it to run, just run ```config_writer.py```, which will prompt you to answer some questions. After finished, ```config_writer.py``` will output ```config.py```. ```config.py``` ~~will prompt for a password, and~~ will then proceed to run the whole program. No further interaction needed!
 
 ## Dependencies
 Briskheat-Serial requires the libraries:
